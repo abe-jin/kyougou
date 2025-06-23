@@ -1,9 +1,10 @@
 import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
-import jwt from 'jsonwebtoken'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './auth/[...nextauth]'
 
-  const rate = {}
+const rate = {}
 const LIMIT = parseInt(process.env.REQUESTS_PER_MINUTE || '60')
 function allow(ip) {
   const now = Date.now()
@@ -17,7 +18,6 @@ function sanitize(str) {
   return String(str).replace(/[<>"'`]/g, '')
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 
 const filePath = path.join(process.cwd(), 'products.json')
 const backupPath = path.join(process.cwd(), 'products_prev.json')
@@ -51,21 +51,18 @@ function writeData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local'
   if (!allow(ip)) {
     res.status(429).json({ error: 'too_many' })
     return
   }
-  const auth = req.headers.authorization || ''
-  const token = auth.replace('Bearer ', '')
-  let user
-  try {
-    user = jwt.verify(token, JWT_SECRET)
-  } catch (e) {
+  const session = await getServerSession(req, res, authOptions)
+  if (!session || !session.user) {
     res.status(401).json({ error: 'unauthorized' })
     return
   }
+  const user = session.user
 
   let data = readData()
   if (req.method === 'GET') {
@@ -91,11 +88,11 @@ export default function handler(req, res) {
       product.owner = sanitize(req.body.owner)
     }
     data.push(product)
-    logOperation(user.email, `add ${product.name}`)
-    writeData(data)
-    res.status(200).json(data)
+    logOperation(user.email, `add ${product.name}`);
+    writeData(data);
+    res.status(200).json(data);
   } else if (req.method === 'PUT') {
-    const { index, product: bodyProd } = req.body
+    const { index, product: bodyProd } = req.body;
     const product = {
       ...bodyProd,
       name: sanitize(bodyProd.name),
@@ -108,36 +105,36 @@ export default function handler(req, res) {
       trendSelector: sanitize(bodyProd.trendSelector || ''),
       category: sanitize(bodyProd.category || ''),
       notify: sanitize(bodyProd.notify || '')
-    }
+    };
     if (data[index]) {
       if (user.role !== 'admin' && data[index].owner !== user.email) {
-        res.status(403).json({ error: 'forbidden' })
-        return
+        res.status(403).json({ error: 'forbidden' });
+        return;
       }
       if (user.role === 'admin') {
-        product.owner = sanitize(bodyProd.owner || data[index].owner)
+        product.owner = sanitize(bodyProd.owner || data[index].owner);
       } else {
-        product.owner = data[index].owner
+        product.owner = data[index].owner;
       }
-      data[index] = product
-      logOperation(user.email, `edit ${product.name}`)
-      writeData(data)
+      data[index] = product;
+      logOperation(user.email, `edit ${product.name}`);
+      writeData(data);
     }
-    res.status(200).json(data)
+    res.status(200).json(data);
   } else if (req.method === 'DELETE') {
-    const { index } = req.body
+    const { index } = req.body;
     if (index >= 0 && index < data.length) {
       if (user.role !== 'admin' && data[index].owner !== user.email) {
-        res.status(403).json({ error: 'forbidden' })
-        return
+        res.status(403).json({ error: 'forbidden' });
+        return;
       }
-      const name = data[index].name
-      data.splice(index, 1)
-      logOperation(user.email, `delete ${name}`)
-      writeData(data)
+      const name = data[index].name;
+      data.splice(index, 1);
+      logOperation(user.email, `delete ${name}`);
+      writeData(data);
     }
-    res.status(200).json(data)
+    res.status(200).json(data);
   } else {
-    res.status(405).end()
+    res.status(405).end();
   }
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react'
 import Head from 'next/head'
 import { LangContext } from '../i18n'
 import Layout from '../components/Layout'
+import { useSession, signIn } from 'next-auth/react'
 
 function decodeToken(token) {
   try {
@@ -13,6 +14,7 @@ function decodeToken(token) {
 }
 
 export default function Manage() {
+  const { data: session, status } = useSession()
   const [products, setProducts] = useState([])
   const { lang, setLang, t } = useContext(LangContext)
   const [user, setUser] = useState(null)
@@ -54,74 +56,76 @@ export default function Manage() {
   })
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      window.location.href = '/login'
+    if (status === 'loading') return
+    if (!session) {
+      signIn('google')
       return
     }
-    const payload = decodeToken(token)
+    const token = localStorage.getItem('token')
+    const payload = token ? decodeToken(token) : { email: session.user?.email }
     setUser(payload)
-    fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } })
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch('/api/products', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setProducts(data))
-    fetch('/api/reports', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/reports', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setReports(data))
-    fetch('/api/approvals', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/approvals', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setApprovals(data))
-    fetch('/api/suggestions', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/suggestions', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setSuggestions(data))
-    fetch('/api/templates', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/templates', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setTemplates(data))
-    fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/users', { headers })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          signIn('google')
           return Promise.reject()
         }
         return res.json()
       })
       .then((data) => setUsers(data))
-  }, [])
+  }, [session, status])
 
   useEffect(() => {
     if (user) {
@@ -138,7 +142,7 @@ export default function Manage() {
     })
     if (res.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      signIn('google')
       return
     }
     const data = await res.json()
@@ -171,7 +175,7 @@ export default function Manage() {
     })
     if (res.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      signIn('google')
       return
     }
     const data = await res.json()
@@ -188,7 +192,7 @@ export default function Manage() {
     })
     if (res.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      signIn('google')
       return
     }
     const data = await res.json()
@@ -203,7 +207,7 @@ export default function Manage() {
     })
     if (res.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      signIn('google')
       return
     }
     const data = await res.json()
@@ -248,7 +252,7 @@ export default function Manage() {
     })
     if (res.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      signIn('google')
       return
     }
     const data = await res.json()
@@ -299,7 +303,7 @@ export default function Manage() {
     const tpl = templates.find(t => t.name === selectedTemplate)
     if (!tpl) return
     const indices = selected
-    const updated = products.map((p,i)=> indices.includes(i) ? { ...p, ...tpl } : p)
+    const updated = products.map((p, i) => indices.includes(i) ? { ...p, ...tpl } : p)
     setProducts(updated)
     for (const i of indices) {
       await updateProduct(i)
@@ -432,8 +436,8 @@ export default function Manage() {
           <option value="both">Slack+LINE</option>
         </select>
         {user?.role === 'admin' && (
-          <select value={newProduct.owner} onChange={(e)=>setNewProduct({ ...newProduct, owner: e.target.value })}>
-            {users.map(u=>(
+          <select value={newProduct.owner} onChange={(e) => setNewProduct({ ...newProduct, owner: e.target.value })}>
+            {users.map(u => (
               <option key={u.email} value={u.email}>{u.email}</option>
             ))}
           </select>
@@ -481,24 +485,24 @@ export default function Manage() {
       </div>
       <h2>{t('bulkEdit')}</h2>
       <div>
-        <select value={selectedTemplate} onChange={(e)=>setSelectedTemplate(e.target.value)}>
+        <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)}>
           <option value="">{t('chooseTemplate')}</option>
-          {templates.map((tpl,i)=>(
+          {templates.map((tpl, i) => (
             <option key={i} value={tpl.name}>{tpl.name}</option>
           ))}
         </select>
         <button onClick={applyTemplate}>{t('applyTemplate')}</button>
         <div>
-          <input placeholder={t('notify')} value={bulkEdit.notify} onChange={(e)=>setBulkEdit({...bulkEdit, notify:e.target.value})} />
-          <input type="number" placeholder={t('interval')} value={bulkEdit.interval} onChange={(e)=>setBulkEdit({...bulkEdit, interval:e.target.value})} />
-          <input type="number" placeholder={t('dropPercent')} value={bulkEdit.dropPercent} onChange={(e)=>setBulkEdit({...bulkEdit, dropPercent:e.target.value})} />
-          <input type="number" placeholder={t('belowPrice')} value={bulkEdit.belowPrice} onChange={(e)=>setBulkEdit({...bulkEdit, belowPrice:e.target.value})} />
-          <input placeholder={t('nameSelector')} value={bulkEdit.nameSelector} onChange={(e)=>setBulkEdit({...bulkEdit, nameSelector:e.target.value})} />
-          <input placeholder={t('priceSelector')} value={bulkEdit.priceSelector} onChange={(e)=>setBulkEdit({...bulkEdit, priceSelector:e.target.value})} />
+          <input placeholder={t('notify')} value={bulkEdit.notify} onChange={(e) => setBulkEdit({ ...bulkEdit, notify: e.target.value })} />
+          <input type="number" placeholder={t('interval')} value={bulkEdit.interval} onChange={(e) => setBulkEdit({ ...bulkEdit, interval: e.target.value })} />
+          <input type="number" placeholder={t('dropPercent')} value={bulkEdit.dropPercent} onChange={(e) => setBulkEdit({ ...bulkEdit, dropPercent: e.target.value })} />
+          <input type="number" placeholder={t('belowPrice')} value={bulkEdit.belowPrice} onChange={(e) => setBulkEdit({ ...bulkEdit, belowPrice: e.target.value })} />
+          <input placeholder={t('nameSelector')} value={bulkEdit.nameSelector} onChange={(e) => setBulkEdit({ ...bulkEdit, nameSelector: e.target.value })} />
+          <input placeholder={t('priceSelector')} value={bulkEdit.priceSelector} onChange={(e) => setBulkEdit({ ...bulkEdit, priceSelector: e.target.value })} />
           {user?.role === 'admin' && (
-            <select value={bulkEdit.owner} onChange={(e)=>setBulkEdit({...bulkEdit, owner:e.target.value})}>
+            <select value={bulkEdit.owner} onChange={(e) => setBulkEdit({ ...bulkEdit, owner: e.target.value })}>
               <option value="">{t('owner')}</option>
-              {users.map(u=>(
+              {users.map(u => (
                 <option key={u.email} value={u.email}>{u.email}</option>
               ))}
             </select>
@@ -532,118 +536,118 @@ export default function Manage() {
         <tbody>
           {products.map((p, i) => (
             <React.Fragment key={i}>
-            <tr>
-              <td>
-                <input type="checkbox" checked={selected.includes(i)} onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelected([...selected, i])
-                  } else {
-                    setSelected(selected.filter(idx => idx !== i))
-                  }
-                }} />
-              </td>
-              <td>
-                <input value={p.name} onChange={(e) => handleChange(i, 'name', e.target.value)} />
-              </td>
-              <td>
-                <input value={p.url} onChange={(e) => handleChange(i, 'url', e.target.value)} />
-              </td>
-              <td>
-                <input value={p.nameSelector || ''} onChange={(e) => handleChange(i, 'nameSelector', e.target.value)} />
-              </td>
-            <td>
-              <input value={p.priceSelector || ''} onChange={(e) => handleChange(i, 'priceSelector', e.target.value)} />
-            </td>
-            <td>
-              <input value={p.reviewSelector || ''} onChange={(e) => handleChange(i, 'reviewSelector', e.target.value)} />
-            </td>
-            <td>
-              <input value={p.ratingSelector || ''} onChange={(e) => handleChange(i, 'ratingSelector', e.target.value)} />
-            </td>
-            <td>
-              <input value={p.rankSelector || ''} onChange={(e) => handleChange(i, 'rankSelector', e.target.value)} />
-            </td>
-            <td>
-              <input value={p.trendSelector || ''} onChange={(e) => handleChange(i, 'trendSelector', e.target.value)} />
-            </td>
-            <td>
-              <input type="number" value={p.interval} onChange={(e) => handleChange(i, 'interval', Number(e.target.value))} />
-            </td>
-              <td>
-                <input type="number" value={p.dropPercent || 0} onChange={(e) => handleChange(i, 'dropPercent', Number(e.target.value))} />
-              </td>
-              <td>
-                <input type="number" value={p.belowPrice || 0} onChange={(e) => handleChange(i, 'belowPrice', Number(e.target.value))} />
-              </td>
-              <td>
-                <input value={p.category || ''} onChange={(e) => handleChange(i, 'category', e.target.value)} />
-              </td>
-              <td>
-                <select value={p.notify || 'slack'} onChange={(e) => handleChange(i, 'notify', e.target.value)}>
-                  <option value="slack">Slack</option>
-                  <option value="line">LINE</option>
-                  <option value="webhook">Webhook</option>
-                  <option value="teams">Teams</option>
-                  <option value="sms">SMS</option>
-                  <option value="chat">Google Chat</option>
-                  <option value="both">Slack+LINE</option>
-                </select>
-              </td>
-              <td>
-                {user?.role === 'admin' ? (
-                  <select value={p.owner || ''} onChange={(e)=>handleChange(i,'owner', e.target.value)}>
-                    {users.map(u=>(
-                      <option key={u.email} value={u.email}>{u.email}</option>
-                    ))}
+              <tr>
+                <td>
+                  <input type="checkbox" checked={selected.includes(i)} onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelected([...selected, i])
+                    } else {
+                      setSelected(selected.filter(idx => idx !== i))
+                    }
+                  }} />
+                </td>
+                <td>
+                  <input value={p.name} onChange={(e) => handleChange(i, 'name', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.url} onChange={(e) => handleChange(i, 'url', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.nameSelector || ''} onChange={(e) => handleChange(i, 'nameSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.priceSelector || ''} onChange={(e) => handleChange(i, 'priceSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.reviewSelector || ''} onChange={(e) => handleChange(i, 'reviewSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.ratingSelector || ''} onChange={(e) => handleChange(i, 'ratingSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.rankSelector || ''} onChange={(e) => handleChange(i, 'rankSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input value={p.trendSelector || ''} onChange={(e) => handleChange(i, 'trendSelector', e.target.value)} />
+                </td>
+                <td>
+                  <input type="number" value={p.interval} onChange={(e) => handleChange(i, 'interval', Number(e.target.value))} />
+                </td>
+                <td>
+                  <input type="number" value={p.dropPercent || 0} onChange={(e) => handleChange(i, 'dropPercent', Number(e.target.value))} />
+                </td>
+                <td>
+                  <input type="number" value={p.belowPrice || 0} onChange={(e) => handleChange(i, 'belowPrice', Number(e.target.value))} />
+                </td>
+                <td>
+                  <input value={p.category || ''} onChange={(e) => handleChange(i, 'category', e.target.value)} />
+                </td>
+                <td>
+                  <select value={p.notify || 'slack'} onChange={(e) => handleChange(i, 'notify', e.target.value)}>
+                    <option value="slack">Slack</option>
+                    <option value="line">LINE</option>
+                    <option value="webhook">Webhook</option>
+                    <option value="teams">Teams</option>
+                    <option value="sms">SMS</option>
+                    <option value="chat">Google Chat</option>
+                    <option value="both">Slack+LINE</option>
                   </select>
-                ) : (
-                  p.owner || ''
-                )}
-              </td>
-              <td>{p.paused ? t('paused') : ''}</td>
-              <td>
-                {(user?.role === 'admin' || p.owner === user?.email) && (
-                  <>
-                    <button onClick={() => updateProduct(i)}>{t('save')}</button>
-                    <button onClick={() => deleteProduct(i)}>{t('delete')}</button>
-                    <button onClick={() => runTest(p, i)}>{t('test')}</button>
-                    <button onClick={() => runNow(i)}>{t('run')}</button>
-                    <button onClick={() => togglePause(i)}>
-                      {p.paused ? t('resume') : t('pause')}
-                    </button>
-                  {testResults[i] && (
-                      <span>
-                        {t('result')}: {testResults[i].name}{' '}
-                        {testResults[i].price ?? ''}
-                      </span>
-                    )}
-                  </>
-                )}
-              </td>
-            </tr>
-            {suggestionMap[p.url] && (
-              <tr key={`fix-${i}`}>
-                <td colSpan="17">
-                  <div>
-                    <span>{t('fixSelectors')}:</span>{' '}
-                    <input
-                      placeholder={t('nameSelector')}
-                      value={p.nameSelector || suggestionMap[p.url].nameSelector || ''}
-                      onChange={(e) => handleChange(i, 'nameSelector', e.target.value)}
-                    />
-                    <input
-                      placeholder={t('priceSelector')}
-                      value={p.priceSelector || suggestionMap[p.url].priceSelector || ''}
-                      onChange={(e) => handleChange(i, 'priceSelector', e.target.value)}
-                    />
-                    <button onClick={() => fixSelectors(i, suggestionMap[p.url].idx)}>
-                      {t('saveAndRun')}
-                    </button>
-                    <button onClick={() => runNow(i)}>{t('retry')}</button>
-                  </div>
+                </td>
+                <td>
+                  {user?.role === 'admin' ? (
+                    <select value={p.owner || ''} onChange={(e) => handleChange(i, 'owner', e.target.value)}>
+                      {users.map(u => (
+                        <option key={u.email} value={u.email}>{u.email}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    p.owner || ''
+                  )}
+                </td>
+                <td>{p.paused ? t('paused') : ''}</td>
+                <td>
+                  {(user?.role === 'admin' || p.owner === user?.email) && (
+                    <>
+                      <button onClick={() => updateProduct(i)}>{t('save')}</button>
+                      <button onClick={() => deleteProduct(i)}>{t('delete')}</button>
+                      <button onClick={() => runTest(p, i)}>{t('test')}</button>
+                      <button onClick={() => runNow(i)}>{t('run')}</button>
+                      <button onClick={() => togglePause(i)}>
+                        {p.paused ? t('resume') : t('pause')}
+                      </button>
+                      {testResults[i] && (
+                        <span>
+                          {t('result')}: {testResults[i].name}{' '}
+                          {testResults[i].price ?? ''}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </td>
               </tr>
-            )}
+              {suggestionMap[p.url] && (
+                <tr key={`fix-${i}`}>
+                  <td colSpan="17">
+                    <div>
+                      <span>{t('fixSelectors')}:</span>{' '}
+                      <input
+                        placeholder={t('nameSelector')}
+                        value={p.nameSelector || suggestionMap[p.url].nameSelector || ''}
+                        onChange={(e) => handleChange(i, 'nameSelector', e.target.value)}
+                      />
+                      <input
+                        placeholder={t('priceSelector')}
+                        value={p.priceSelector || suggestionMap[p.url].priceSelector || ''}
+                        onChange={(e) => handleChange(i, 'priceSelector', e.target.value)}
+                      />
+                      <button onClick={() => fixSelectors(i, suggestionMap[p.url].idx)}>
+                        {t('saveAndRun')}
+                      </button>
+                      <button onClick={() => runNow(i)}>{t('retry')}</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </React.Fragment>
           ))}
         </tbody>

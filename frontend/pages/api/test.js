@@ -1,7 +1,8 @@
 import 'dotenv/config'
 import fetch from 'node-fetch'
 import cheerio from 'cheerio'
-import jwt from 'jsonwebtoken'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './auth/[...nextauth]'
 
 const rate = {}
 const LIMIT = parseInt(process.env.REQUESTS_PER_MINUTE || '60')
@@ -13,7 +14,6 @@ function allow(ip) {
   return true
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 
 export default async function handler(req, res) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local'
@@ -21,11 +21,8 @@ export default async function handler(req, res) {
     res.status(429).json({ error: 'too_many' })
     return
   }
-  const auth = req.headers.authorization || ''
-  const token = auth.replace('Bearer ', '')
-  try {
-    jwt.verify(token, JWT_SECRET)
-  } catch (e) {
+  const session = await getServerSession(req, res, authOptions)
+  if (!session || !session.user) {
     res.status(401).json({ error: 'unauthorized' })
     return
   }

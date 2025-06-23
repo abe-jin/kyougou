@@ -3,8 +3,15 @@ import json
 import csv
 import io
 
-import boto3
-from google.cloud import firestore
+try:
+    import boto3
+except Exception:  # boto3 not installed
+    boto3 = None
+
+try:
+    from google.cloud import firestore
+except Exception:  # missing dependency or other import failure
+    firestore = None
 from env_loader import load_env
 
 load_env()
@@ -13,8 +20,15 @@ S3_BUCKET = os.getenv("S3_BUCKET")
 FIRESTORE_PROJECT = os.getenv("FIRESTORE_PROJECT")
 FIRESTORE_COLLECTION = os.getenv("FIRESTORE_COLLECTION", "files")
 
-s3 = boto3.client("s3") if S3_BUCKET else None
-fs = firestore.Client(project=FIRESTORE_PROJECT) if FIRESTORE_PROJECT else None
+s3 = boto3.client("s3") if S3_BUCKET and boto3 is not None else None
+if FIRESTORE_PROJECT and firestore is not None:
+    try:
+        fs = firestore.Client(project=FIRESTORE_PROJECT)
+    except Exception as e:  # credentials or config error
+        print("Failed to init Firestore client:", e)
+        fs = None
+else:
+    fs = None
 
 
 def download_text(key: str, default: str = "") -> str:
@@ -38,9 +52,8 @@ def download_text(key: str, default: str = "") -> str:
     try:
         obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
         return obj["Body"].read().decode("utf-8")
-    except s3.exceptions.NoSuchKey:
-        return default
     except Exception as e:
+        # handle missing object or other client errors generically
         print("s3 download error", e)
         return default
 
@@ -120,3 +133,13 @@ def append_csv(key: str, rows, fieldnames):
 def append_text(key: str, text: str):
     existing = download_text(key, "")
     upload_text(key, existing + text)
+
+__all__ = [
+    "download_text",
+    "upload_text",
+    "download_json",
+    "upload_json",
+    "download_csv",
+    "append_csv",
+    "append_text",
+]

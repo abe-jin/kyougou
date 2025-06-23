@@ -1,7 +1,8 @@
 import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
-import jwt from 'jsonwebtoken'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './auth/[...nextauth]'
 
 const rate = {}
 const LIMIT = parseInt(process.env.REQUESTS_PER_MINUTE || '60')
@@ -17,7 +18,6 @@ function sanitize(str) {
   return String(str || '').replace(/[<>"'`]/g, '')
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const filePath = path.join(process.cwd(), 'reports.json')
 const logPath = path.join(process.cwd(), '..', 'operation.log')
 
@@ -42,22 +42,18 @@ function writeData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local'
   if (!allow(ip)) {
     res.status(429).json({ error: 'too_many' })
     return
   }
-  const auth = req.headers.authorization || ''
-  const token = auth.replace('Bearer ', '')
-  let user
-  try {
-    user = jwt.verify(token, JWT_SECRET)
-  } catch (e) {
+  const session = await getServerSession(req, res, authOptions)
+  if (!session || !session.user) {
     res.status(401).json({ error: 'unauthorized' })
     return
   }
-
+  const user = session.user
   const data = readData()
 
   if (req.method === 'GET') {

@@ -19,8 +19,15 @@ auto_backup()
 LOG_FILE = os.getenv(
     "LOG_FILE", os.path.join(os.path.dirname(__file__), "..", "operation.log")
 )
+SERVICE_NAME = os.getenv("SERVICE_NAME", "kyougou-api")
 
 app = Flask(__name__)
+
+# simple root endpoint for health check
+@app.route('/')
+def index():
+    """Return service status and name."""
+    return jsonify({'service': SERVICE_NAME, 'status': 'ok'})
 
 # simple in-memory rate limiter {key: [timestamps]}
 RATE_LIMIT = {}

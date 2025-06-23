@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import jwt from 'jsonwebtoken'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './auth/[...nextauth]'
 
 const rate = {}
 const LIMIT = parseInt(process.env.REQUESTS_PER_MINUTE || '60')
@@ -12,20 +13,16 @@ function allow(ip){
   return true
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const filePath = path.join(process.cwd(), 'frontend', 'templates.json')
 
 function readData(){
   try{ return JSON.parse(fs.readFileSync(filePath,'utf-8')) }catch{ return [] }
 }
 
-export default function handler(req,res){
+export default async function handler(req,res){
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local'
-  if(!allow(ip)) return res.status(429).json({error:'too_many'})
-  const auth = req.headers.authorization || ''
-  const token = auth.replace('Bearer ','')
-  try{ jwt.verify(token, JWT_SECRET) }catch(e){ return res.status(401).json({error:'unauthorized'}) }
-
+  const session = await getServerSession(req, res, authOptions)
+  if(!session || !session.user) return res.status(401).json({error:'unauthorized'})
   if(req.method==='GET'){
     const data = readData()
     res.status(200).json(data)
