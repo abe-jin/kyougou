@@ -1170,6 +1170,16 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({\n    value: true\n}));
 "use strict";
 eval("\nObject.defineProperty(exports, \"__esModule\", ({\n    value: true\n}));\nObject.defineProperty(exports, \"warnOnce\", ({\n    enumerable: true,\n    get: function() {\n        return warnOnce;\n    }\n}));\nlet warnOnce = (_)=>{};\nif (true) {\n    const warnings = new Set();\n    warnOnce = (msg)=>{\n        if (!warnings.has(msg)) {\n            console.warn(msg);\n        }\n        warnings.add(msg);\n    };\n} //# sourceMappingURL=warn-once.js.map\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9ub2RlX21vZHVsZXMvbmV4dC9kaXN0L3NoYXJlZC9saWIvdXRpbHMvd2Fybi1vbmNlLmpzIiwibWFwcGluZ3MiOiI7Ozs7NENBV1NBOzs7ZUFBQUE7OztBQVhULElBQUlBLFdBQVcsQ0FBQ0MsS0FBZTtBQUMvQixJQUFJQyxJQUFvQixFQUFtQjtJQUN6QyxNQUFNRyxXQUFXLElBQUlDO0lBQ3JCTixXQUFXLENBQUNPO1FBQ1YsSUFBSSxDQUFDRixTQUFTRyxHQUFHLENBQUNELE1BQU07WUFDdEJFLFFBQVFDLElBQUksQ0FBQ0g7UUFDZjtRQUNBRixTQUFTTSxHQUFHLENBQUNKO0lBQ2Y7QUFDRiIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxzcmNcXHNoYXJlZFxcbGliXFx1dGlsc1xcd2Fybi1vbmNlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImxldCB3YXJuT25jZSA9IChfOiBzdHJpbmcpID0+IHt9XG5pZiAocHJvY2Vzcy5lbnYuTk9ERV9FTlYgIT09ICdwcm9kdWN0aW9uJykge1xuICBjb25zdCB3YXJuaW5ncyA9IG5ldyBTZXQ8c3RyaW5nPigpXG4gIHdhcm5PbmNlID0gKG1zZzogc3RyaW5nKSA9PiB7XG4gICAgaWYgKCF3YXJuaW5ncy5oYXMobXNnKSkge1xuICAgICAgY29uc29sZS53YXJuKG1zZylcbiAgICB9XG4gICAgd2FybmluZ3MuYWRkKG1zZylcbiAgfVxufVxuXG5leHBvcnQgeyB3YXJuT25jZSB9XG4iXSwibmFtZXMiOlsid2Fybk9uY2UiLCJfIiwicHJvY2VzcyIsImVudiIsIk5PREVfRU5WIiwid2FybmluZ3MiLCJTZXQiLCJtc2ciLCJoYXMiLCJjb25zb2xlIiwid2FybiIsImFkZCJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///./node_modules/next/dist/shared/lib/utils/warn-once.js\n");
 
+/***/ }),
+
+/***/ "./node_modules/next/head.js":
+/*!***********************************!*\
+  !*** ./node_modules/next/head.js ***!
+  \***********************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+eval("module.exports = __webpack_require__(/*! ./dist/shared/lib/head */ \"./node_modules/next/dist/shared/lib/head.js\")\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9ub2RlX21vZHVsZXMvbmV4dC9oZWFkLmpzIiwibWFwcGluZ3MiOiJBQUFBLGlIQUFrRCIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxLT1pVRVxcRG93bmxvYWRzXFxreW91Z291XFxmcm9udGVuZFxcbm9kZV9tb2R1bGVzXFxuZXh0XFxoZWFkLmpzIl0sInNvdXJjZXNDb250ZW50IjpbIm1vZHVsZS5leHBvcnRzID0gcmVxdWlyZSgnLi9kaXN0L3NoYXJlZC9saWIvaGVhZCcpXG4iXSwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbMF0sInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///./node_modules/next/head.js\n");
+
 /***/ })
 
 };

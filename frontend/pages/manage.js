@@ -3,7 +3,8 @@ import Head from 'next/head'
 import { LangContext } from '../i18n'
 import Layout from '../components/Layout'
 import { useSession, signIn } from 'next-auth/react'
-
+import { toast } from 'react-hot-toast'
+import Spinner from '../components/Spinner'
 function decodeToken(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -54,6 +55,14 @@ export default function Manage() {
     priceSelector: '',
     owner: ''
   })
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [sortField, setSortField] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [page, setPage] = useState(0)
+  const ITEMS_PER_PAGE = 10
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (status === 'loading') return
@@ -65,66 +74,69 @@ export default function Manage() {
     const payload = token ? decodeToken(token) : { email: session.user?.email }
     setUser(payload)
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
-    fetch('/api/products', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setProducts(data))
-    fetch('/api/reports', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setReports(data))
-    fetch('/api/approvals', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setApprovals(data))
-    fetch('/api/suggestions', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setSuggestions(data))
-    fetch('/api/templates', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setTemplates(data))
-    fetch('/api/users', { headers })
-      .then((res) => {
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          signIn('google')
-          return Promise.reject()
-        }
-        return res.json()
-      })
-      .then((data) => setUsers(data))
+    setLoading(true)
+    Promise.all([
+      fetch('/api/products', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setProducts(data)),
+      fetch('/api/reports', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setReports(data)),
+      fetch('/api/approvals', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setApprovals(data)),
+      fetch('/api/suggestions', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setSuggestions(data)),
+      fetch('/api/templates', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setTemplates(data)),
+      fetch('/api/users', { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            localStorage.removeItem('token')
+            signIn('google')
+            return Promise.reject()
+          }
+          return res.json()
+        })
+        .then((data) => setUsers(data))
+    ]).finally(() => setLoading(false))
   }, [session, status])
 
   useEffect(() => {
@@ -134,7 +146,16 @@ export default function Manage() {
   }, [user])
 
   const addProduct = async () => {
+    const errs = {}
+    if (!newProduct.name) errs.name = true
+    if (!newProduct.url) errs.url = true
+    setErrors(errs)
+    if (Object.keys(errs).length) {
+      toast.error('Please fill required fields')
+      return
+    }
     const token = localStorage.getItem('token')
+    setActionLoading(true)
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -143,10 +164,12 @@ export default function Manage() {
     if (res.status === 401) {
       localStorage.removeItem('token')
       signIn('google')
+      setActionLoading(false)
       return
     }
     const data = await res.json()
     setProducts(data)
+    toast.success('Added')
     setNewProduct({
       name: '',
       url: '',
@@ -164,10 +187,12 @@ export default function Manage() {
       owner: user?.email || '',
       paused: false
     })
+    setActionLoading(false)
   }
 
   const updateProduct = async (index) => {
     const token = localStorage.getItem('token')
+    setActionLoading(true)
     const res = await fetch('/api/products', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -176,15 +201,19 @@ export default function Manage() {
     if (res.status === 401) {
       localStorage.removeItem('token')
       signIn('google')
+      setActionLoading(false)
       return
     }
     const data = await res.json()
     setProducts(data)
+    toast.success('Saved')
+    setActionLoading(false)
     return data
   }
 
   const deleteProduct = async (index) => {
     const token = localStorage.getItem('token')
+    setActionLoading(true)
     const res = await fetch('/api/products', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -193,10 +222,13 @@ export default function Manage() {
     if (res.status === 401) {
       localStorage.removeItem('token')
       signIn('google')
+      setActionLoading(false)
       return
     }
     const data = await res.json()
     setProducts(data)
+    toast.success('Deleted')
+    setActionLoading(false)
   }
 
   const rollback = async () => {
@@ -212,11 +244,21 @@ export default function Manage() {
     }
     const data = await res.json()
     setProducts(data)
+    toast.success('Rolled back')
   }
 
   const handleChange = (index, field, value) => {
     const updated = products.map((p, i) => (i === index ? { ...p, [field]: value } : p))
     setProducts(updated)
+  }
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
   }
 
   const [pricesInput, setPricesInput] = useState('')
@@ -381,6 +423,21 @@ export default function Manage() {
   suggestions.forEach((s, i) => {
     suggestionMap[s.url] = { ...s, idx: i }
   })
+  const filtered = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.url.toLowerCase().includes(search.toLowerCase())
+  )
+  const sorted = filtered.sort((a, b) => {
+    if (!sortField) return 0
+    const av = a[sortField] || ''
+    const bv = b[sortField] || ''
+    if (av === bv) return 0
+    if (sortOrder === 'asc') return av > bv ? 1 : -1
+    return av < bv ? 1 : -1
+  })
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE)
+  const paged = sorted.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
 
   return (
     <Layout>
@@ -398,8 +455,18 @@ export default function Manage() {
       <h1>{t('manageTitle')}</h1>
       <h2>{t('addProduct')}</h2>
       <div>
-        <input placeholder={t('name')} value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
-        <input placeholder={t('url')} value={newProduct.url} onChange={(e) => setNewProduct({ ...newProduct, url: e.target.value })} />
+        <input
+          className={`border px-2 py-1 ${errors.name ? 'border-red-500' : ''}`}
+          placeholder={t('name')}
+          value={newProduct.name}
+          onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+        />
+        <input
+          className={`border px-2 py-1 ${errors.url ? 'border-red-500' : ''}`}
+          placeholder={t('url')}
+          value={newProduct.url}
+          onChange={(e) => setNewProduct({ ...newProduct, url: e.target.value })}
+        />
         <input placeholder={t('nameSelector')} value={newProduct.nameSelector} onChange={(e) => setNewProduct({ ...newProduct, nameSelector: e.target.value })} />
         <input placeholder={t('priceSelector')} value={newProduct.priceSelector} onChange={(e) => setNewProduct({ ...newProduct, priceSelector: e.target.value })} />
         <input placeholder={t('reviewSelector')} value={newProduct.reviewSelector} onChange={(e) => setNewProduct({ ...newProduct, reviewSelector: e.target.value })} />
@@ -442,7 +509,9 @@ export default function Manage() {
             ))}
           </select>
         )}
-        <button onClick={addProduct}>{t('addProduct')}</button>
+        <button onClick={addProduct} disabled={actionLoading} className="border px-2 py-1">
+          {actionLoading ? '...' : t('addProduct')}
+        </button>
       </div>
       {user?.role === 'admin' && (
         <button onClick={rollback}>{t('rollback')}</button>
@@ -511,11 +580,28 @@ export default function Manage() {
         </div>
       </div>
       <h2>{t('productsTitle')}</h2>
-      <table>
+      <div className="my-2">
+        <input
+          className="border px-2 py-1"
+          placeholder={t('searchPlaceholder')}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(0)
+          }}
+        />
+      </div>
+      {loading ? (
+        <Spinner />
+      ) : (
+      <>
+      <table className="min-w-full text-sm">
         <thead>
           <tr>
             <th>{t('select')}</th>
-            <th>{t('name')}</th>
+            <th onClick={() => handleSort('name')} className="cursor-pointer">
+              {t('name')}
+            </th>
             <th>{t('url')}</th>
             <th>{t('nameSelector')}</th>
             <th>{t('priceSelector')}</th>
@@ -534,7 +620,7 @@ export default function Manage() {
           </tr>
         </thead>
         <tbody>
-          {products.map((p, i) => (
+          {paged.map((p, i) => (
             <React.Fragment key={i}>
               <tr>
                 <td>
@@ -608,8 +694,12 @@ export default function Manage() {
                 <td>
                   {(user?.role === 'admin' || p.owner === user?.email) && (
                     <>
-                      <button onClick={() => updateProduct(i)}>{t('save')}</button>
-                      <button onClick={() => deleteProduct(i)}>{t('delete')}</button>
+                      <button disabled={actionLoading} onClick={() => updateProduct(i)} className="border px-2 py-1">
+                        {actionLoading ? '...' : t('save')}
+                      </button>
+                      <button disabled={actionLoading} onClick={() => deleteProduct(i)} className="border px-2 py-1">
+                        {actionLoading ? '...' : t('delete')}
+                      </button>
                       <button onClick={() => runTest(p, i)}>{t('test')}</button>
                       <button onClick={() => runNow(i)}>{t('run')}</button>
                       <button onClick={() => togglePause(i)}>
@@ -652,7 +742,27 @@ export default function Manage() {
           ))}
         </tbody>
       </table>
-
+      <div className="flex justify-end gap-2 my-2">
+        <button
+          className="border px-2 py-1"
+          disabled={page === 0}
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+        >
+          Prev
+        </button>
+        <span>
+          {page + 1}/{totalPages || 1}
+        </span>
+        <button
+          className="border px-2 py-1"
+          disabled={page >= totalPages - 1}
+          onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+      </>
+      )}
       <h2>{t('pendingApprovals')}</h2>
       <table>
         <thead>

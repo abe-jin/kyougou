@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react'
 import Link from 'next/link'
 import { LangContext } from '../i18n'
+import { Sun, Moon } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { lang, setLang, t } = useContext(LangContext)
@@ -19,26 +20,28 @@ export default function Layout({ children }) {
   }, [dark])
 
   return (
-    <div className="layout">
-      <header className="header">
-        <div className="logo">Kyougou</div>
-        <nav className="nav">
+    <div className="min-h-screen flex flex-col">
+      <header className="flex items-center justify-between px-4 py-2 bg-gray-800 text-white">
+        <div className="font-bold">Kyougou</div>
+        <nav className="space-x-4">
           <Link href="/">{t('dashboard')}</Link>
           <Link href="/manage">{t('manageMenu')}</Link>
           <Link href="/compare">{t('compare')}</Link>
           <Link href="/help">{t('help')}</Link>
         </nav>
-        <div className="tools">
-          <input placeholder={t('searchPlaceholder')} />
-          <button onClick={() => setDark(!dark)}>{dark ? '☀' : '🌙'}</button>
-          <select value={lang} onChange={(e) => setLang(e.target.value)}>
+        <div className="flex items-center gap-2">
+          <input className="border px-2 py-1" placeholder={t('searchPlaceholder')} />
+          <button onClick={() => setDark(!dark)}>
+            {dark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <select className="text-black" value={lang} onChange={(e) => setLang(e.target.value)}>
             <option value="en">EN</option>
             <option value="ja">JA</option>
           </select>
         </div>
       </header>
-      <div className="content">
-        <aside className="sidebar">
+      <div className="flex flex-1">
+        <aside className="w-48 bg-gray-100 p-4 dark:bg-gray-900">
           <ul>
             <li><Link href="/">{t('dashboard')}</Link></li>
             <li><Link href="/manage">{t('manageMenu')}</Link></li>
@@ -46,7 +49,7 @@ export default function Layout({ children }) {
             <li><Link href="/help">{t('help')}</Link></li>
           </ul>
         </aside>
-        <main className="main">{children}</main>
+        <main className="flex-1 p-4">{children}</main>
       </div>
     </div>
   )
