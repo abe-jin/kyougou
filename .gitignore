@@ -3,3 +3,4 @@
 __pycache__/
 node_modules/
 frontend/products_prev.json.env
+.env
