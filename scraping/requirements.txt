@@ -1,0 +1,14 @@
+beautifulsoup4
+requests
+pandas
+matplotlib
+XlsxWriter
+Flask
+schedule
+PyJWT
+boto3
+google-auth
+google-cloud-firestore
+python-dotenv
+scikit-learn
+tzdata

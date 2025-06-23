@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Sample Product",
+    "url": "https://example.com/product1",
+    "nameSelector": "span.productTitle",
+    "priceSelector": "span.price",
+    "reviewSelector": "span.reviews",
+    "ratingSelector": "span.rating",
+    "rankSelector": "span.rank",
+    "trendSelector": "div.trend",
+    "interval": 1,
+    "dropPercent": 5,
+    "belowPrice": 1000,
+    "category": "General",
+    "notify": "webhook",
+    "owner": "admin@example.com",
+    "ecId": "123",
+    "paused": false,
+    "minPrice": 800
+    }
+]

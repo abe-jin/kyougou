@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Default Notification",
+    "notify": "slack",
+    "interval": 1,
+    "dropPercent": 5,
+    "belowPrice": 0,
+    "nameSelector": "",
+    "priceSelector": ""
+  },
+  {
+    "name": "LINE Alert",
+    "notify": "line",
+    "interval": 2,
+    "dropPercent": 3,
+    "belowPrice": 0,
+    "nameSelector": "",
+    "priceSelector": ""
+  }
+]
