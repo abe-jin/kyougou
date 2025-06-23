@@ -7,13 +7,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "cheerio": "latest",
+    "dotenv": "latest",
+    "jsonwebtoken": "latest",
     "next": "latest",
+    "next-auth": "^4.24.11",
+    "node-fetch": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "recharts": "latest",
-    "jsonwebtoken": "latest",
-    "dotenv": "latest",
-    "cheerio": "latest",
-    "node-fetch": "latest"
+    "recharts": "latest"
   }
 }

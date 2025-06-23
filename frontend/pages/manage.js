@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import Head from 'next/head'
 import { LangContext } from '../i18n'
 import Layout from '../components/Layout'
@@ -531,7 +531,8 @@ export default function Manage() {
         </thead>
         <tbody>
           {products.map((p, i) => (
-            <tr key={i}>
+            <React.Fragment key={i}>
+            <tr>
               <td>
                 <input type="checkbox" checked={selected.includes(i)} onChange={(e) => {
                   if (e.target.checked) {
@@ -643,6 +644,7 @@ export default function Manage() {
                 </td>
               </tr>
             )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

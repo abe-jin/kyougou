@@ -3,6 +3,8 @@ import Head from 'next/head'
 import Layout from '../components/Layout'
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { LangContext } from '../i18n'
+// 追加：NextAuthのsignIn, signOut, useSession
+import { signIn, signOut, useSession } from "next-auth/react"
 
 export default function Home() {
   const [data, setData] = useState({})
@@ -10,19 +12,11 @@ export default function Home() {
   const [tz, setTz] = useState('UTC')
   const defaultPrefs = { showLatest: true, showLowest: true, showChart: true }
   const [prefs, setPrefs] = useState(defaultPrefs)
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+  // NextAuthのセッション
+  const { data: session, status } = useSession()
+
   useEffect(() => {
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        setTz(payload.tz || 'UTC')
-      } catch (e) {}
-      fetch('/api/prefs', { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => (r.ok ? r.json() : {}))
-        .then((p) => {
-          if (p.dashboard) setPrefs({ ...defaultPrefs, ...p.dashboard })
-        })
-    }
+    // NextAuth認証時はlocalStorage token不要
     fetch('/prices.json')
       .then((res) => res.json())
       .then((json) => setData(json))
@@ -30,12 +24,7 @@ export default function Home() {
 
   const updatePrefs = (newPrefs) => {
     setPrefs(newPrefs)
-    if (!token) return
-    fetch('/api/prefs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ dashboard: newPrefs })
-    })
+    // prefsの保存ロジックは用途に応じて修正
   }
 
   return (
@@ -44,6 +33,25 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{t('dashboardTitle')}</title>
       </Head>
+
+      {/* Googleログインボタン */}
+      <div style={{ margin: "1em 0", textAlign: "right" }}>
+        {status === "loading" ? (
+          <span>Loading...</span>
+        ) : session ? (
+          <div>
+            <span>ログイン中: {session.user?.email}</span>
+            <button onClick={() => signOut()} style={{ marginLeft: 16 }}>
+              ログアウト
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => signIn("google")}>
+            Googleでログイン
+          </button>
+        )}
+      </div>
+
       <div style={{ textAlign: 'right' }}>
         <select value={lang} onChange={(e) => setLang(e.target.value)}>
           <option value="en">English</option>
