@@ -1,5 +1,12 @@
+:root {
+  --color-primary: #1e3a8a;
+  --color-secondary: #f59e0b;
+  --radius-lg: 0.5rem;
+  --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', Arial, sans-serif;
   margin: 0;
   padding: 0;
 }
@@ -7,15 +14,18 @@ body {
 table {
   width: 100%;
   border-collapse: collapse;
+  box-shadow: var(--shadow-card);
 }
 
 td, th {
   border: 1px solid #ddd;
   padding: 0.5rem;
+  border-radius: var(--radius-lg);
 }
 
 input, select, button {
   margin: 0.25rem;
+  border-radius: var(--radius-lg);
 }
 
 .chart-container {
@@ -23,11 +33,20 @@ input, select, button {
 }
 
 @media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
   input, select, button {
     width: 100%;
     box-sizing: border-box;
   }
+  button {
+    padding: 0.75rem 1rem;
+  }
   table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
     font-size: 14px;
   }
 }
@@ -42,8 +61,9 @@ input, select, button {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background: #333;
+  background: var(--color-primary);
   color: #fff;
+  box-shadow: var(--shadow-card);
 }
 .header a {
   color: #fff;
@@ -62,6 +82,8 @@ input, select, button {
   width: 200px;
   background: #f3f3f3;
   padding: 1rem;
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
 }
 .sidebar ul {
   list-style: none;
@@ -69,6 +91,24 @@ input, select, button {
 }
 .sidebar li {
   margin-bottom: 0.5rem;
+}
+.sidebar li.active a,
+.sidebar li.active{
+  font-weight: bold;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-lg);
+}
+input:focus, select:focus, button:focus {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+.section-title{
+  font-size:1.25rem;
+  font-weight:bold;
+  padding-bottom:0.25rem;
+  border-bottom:2px solid var(--color-secondary);
+  margin-bottom:0.5rem;
 }
 .main {
   flex: 1;
@@ -79,7 +119,7 @@ body.dark {
   color: #eee;
 }
 body.dark .header {
-  background: #000;
+  background: var(--color-primary);
 }
 body.dark .sidebar {
   background: #222;
@@ -92,3 +132,25 @@ body.dark .sidebar {
     width: 100%;
   }
 }
+
+/* DataTable styles */
+.row-actions{display:none}
+.group:hover .row-actions{display:inline-flex}
+.status-badge{font-weight:bold;padding:0 0.25rem;border-radius:0.25rem}
+.status-active{background:#dcfce7;color:#166534}
+.status-paused{background:#fee2e2;color:#991b1b}
+.status-error{background:#fca5a5;color:#7f1d1d}
+.status-waiting{background:#fef9c3;color:#92400e}
+.btn{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;border-radius:0.5rem;color:#fff;transition:transform 0.1s ease,box-shadow 0.2s}
+.btn:hover{transform:scale(1.03);box-shadow:0 2px 6px rgba(0,0,0,0.2)}
+.btn:active{transform:scale(0.95)}
+.btn-add{background:#16a34a}
+.btn-add:hover{background:#15803d}
+.btn-edit{background:#2563eb}
+.btn-edit:hover{background:#1d4ed8}
+.btn-delete{background:#dc2626}
+.btn-delete:hover{background:#b91c1c}
+.progress-bar{position:fixed;top:0;left:0;height:4px;background:var(--color-secondary);width:100%;transform:translateX(-100%);animation:progress 1s linear infinite;z-index:50}
+@keyframes progress{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.animate-fadeIn{animation:fadeIn 0.2s ease}
