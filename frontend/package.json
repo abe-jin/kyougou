@@ -10,13 +10,13 @@
     "cheerio": "latest",
     "dotenv": "latest",
     "jsonwebtoken": "latest",
-    "next": "latest",
+    "lucide-react": "latest",
+    "next": "^15.3.4",
     "next-auth": "^4.24.11",
     "node-fetch": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "recharts": "latest",
     "react-hot-toast": "latest",
-    "lucide-react": "latest"
+    "recharts": "latest"
   }
 }

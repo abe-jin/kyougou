@@ -5,6 +5,19 @@ import Layout from '../components/Layout'
 import { useSession, signIn } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
 import Spinner from '../components/Spinner'
+import DataTable from '../components/table/DataTable'
+import Button from '../components/ui/Button'
+import FormField from '../components/ui/FormField'
+import Dialog from '../components/ui/Dialog'
+import {
+  PlusCircle,
+  Save as SaveIcon,
+  Trash2,
+  Beaker,
+  Play,
+  Pause as PauseIcon,
+  Search
+} from 'lucide-react'
 function decodeToken(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -46,6 +59,9 @@ export default function Manage() {
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [selected, setSelected] = useState([])
   const [users, setUsers] = useState([])
+  const [origProducts, setOrigProducts] = useState([])
+  const [showAdd, setShowAdd] = useState(false)
+  const [touched, setTouched] = useState({})
   const [bulkEdit, setBulkEdit] = useState({
     notify: '',
     interval: '',
@@ -60,10 +76,9 @@ export default function Manage() {
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
-  const [page, setPage] = useState(0)
   const ITEMS_PER_PAGE = 10
   const [errors, setErrors] = useState({})
-
+  const [undo, setUndo] = useState(null)
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
@@ -85,7 +100,10 @@ export default function Manage() {
           }
           return res.json()
         })
-        .then((data) => setProducts(data)),
+        .then((data) => {
+          setProducts(data)
+          setOrigProducts(data)
+        }),
       fetch('/api/reports', { headers })
         .then((res) => {
           if (res.status === 401) {
@@ -146,6 +164,7 @@ export default function Manage() {
   }, [user])
 
   const addProduct = async () => {
+    if (!window.confirm('Add this product?')) return
     const errs = {}
     if (!newProduct.name) errs.name = true
     if (!newProduct.url) errs.url = true
@@ -156,6 +175,7 @@ export default function Manage() {
     }
     const token = localStorage.getItem('token')
     setActionLoading(true)
+    const prev = [...products]
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -169,7 +189,14 @@ export default function Manage() {
     }
     const data = await res.json()
     setProducts(data)
-    toast.success('Added')
+    setOrigProducts(data)
+    setOrigProducts(data)
+    setUndo({ type: 'add', prev })
+    toast.success(
+      <span>
+        Added <button className="underline" onClick={() => { undoLast(); toast.dismiss(t.id) }}>Undo</button>
+      </span>
+    )
     setNewProduct({
       name: '',
       url: '',
@@ -191,8 +218,10 @@ export default function Manage() {
   }
 
   const updateProduct = async (index) => {
+    if (!window.confirm('Save changes?')) return
     const token = localStorage.getItem('token')
     setActionLoading(true)
+    const prev = [...products]
     const res = await fetch('/api/products', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -206,14 +235,21 @@ export default function Manage() {
     }
     const data = await res.json()
     setProducts(data)
-    toast.success('Saved')
+    setUndo({ type: 'edit', prev })
+    toast.success(
+      <span>
+        Saved <button className="underline" onClick={() => { undoLast(); toast.dismiss(t.id) }}>Undo</button>
+      </span>
+    )
     setActionLoading(false)
     return data
   }
 
   const deleteProduct = async (index) => {
+    if (!window.confirm('Delete this product?')) return
     const token = localStorage.getItem('token')
     setActionLoading(true)
+    const prev = [...products]
     const res = await fetch('/api/products', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -228,6 +264,12 @@ export default function Manage() {
     const data = await res.json()
     setProducts(data)
     toast.success('Deleted')
+    setUndo({ type: 'delete', prev })
+    toast.success(
+      <span>
+        Deleted <button className="underline" onClick={() => { undoLast(); toast.dismiss(t.id) }}>Undo</button>
+      </span>
+    )
     setActionLoading(false)
   }
 
@@ -244,12 +286,16 @@ export default function Manage() {
     }
     const data = await res.json()
     setProducts(data)
+    setOrigProducts(data)
     toast.success('Rolled back')
   }
 
   const handleChange = (index, field, value) => {
     const updated = products.map((p, i) => (i === index ? { ...p, [field]: value } : p))
     setProducts(updated)
+  }
+  const cancelEdit = (index) => {
+    setProducts(products.map((p, i) => (i === index ? origProducts[index] : p)))
   }
 
   const handleSort = (field) => {
@@ -319,6 +365,11 @@ export default function Manage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ index })
     })
+  }
+  const undoLast = () => {
+    if (!undo) return
+    setProducts(undo.prev)
+    setUndo(null)
   }
 
   const applyBulkEdit = async () => {
@@ -436,64 +487,67 @@ export default function Manage() {
     if (sortOrder === 'asc') return av > bv ? 1 : -1
     return av < bv ? 1 : -1
   })
-  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE)
-  const paged = sorted.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
 
-  return (
-    <Layout>
-      <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{t('manageTitle')}</title>
-      </Head>
-      <div style={{ textAlign: 'right' }}>
-        <select value={lang} onChange={(e) => setLang(e.target.value)}>
-          <option value="en">English</option>
-          <option value="ja">日本語</option>
-        </select>{' '}
-        <a href="/help">{t('help')}</a>
-      </div>
-      <h1>{t('manageTitle')}</h1>
-      <h2>{t('addProduct')}</h2>
-      <div>
+  const columns = [
+    {
+      header: t('select'),
+      accessor: 'select',
+      cell: (_, __, idx) => (
         <input
-          className={`border px-2 py-1 ${errors.name ? 'border-red-500' : ''}`}
-          placeholder={t('name')}
-          value={newProduct.name}
-          onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+          type="checkbox"
+          checked={selected.includes(idx)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelected([...selected, idx])
+            } else {
+              setSelected(selected.filter((i) => i !== idx))
+            }
+          }}
         />
-        <input
-          className={`border px-2 py-1 ${errors.url ? 'border-red-500' : ''}`}
-          placeholder={t('url')}
-          value={newProduct.url}
-          onChange={(e) => setNewProduct({ ...newProduct, url: e.target.value })}
-        />
-        <input placeholder={t('nameSelector')} value={newProduct.nameSelector} onChange={(e) => setNewProduct({ ...newProduct, nameSelector: e.target.value })} />
-        <input placeholder={t('priceSelector')} value={newProduct.priceSelector} onChange={(e) => setNewProduct({ ...newProduct, priceSelector: e.target.value })} />
-        <input placeholder={t('reviewSelector')} value={newProduct.reviewSelector} onChange={(e) => setNewProduct({ ...newProduct, reviewSelector: e.target.value })} />
-        <input placeholder={t('ratingSelector')} value={newProduct.ratingSelector} onChange={(e) => setNewProduct({ ...newProduct, ratingSelector: e.target.value })} />
-        <input placeholder={t('rankSelector')} value={newProduct.rankSelector} onChange={(e) => setNewProduct({ ...newProduct, rankSelector: e.target.value })} />
-        <input placeholder={t('trendSelector')} value={newProduct.trendSelector} onChange={(e) => setNewProduct({ ...newProduct, trendSelector: e.target.value })} />
-        <button onClick={async () => {
-          if (!newProduct.url) return
-          const res = await fetch('/api/detect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: newProduct.url })
-          })
-          if (res.ok) {
-            const json = await res.json()
-            setNewProduct(p => ({ ...p, nameSelector: json.nameSelector, priceSelector: json.priceSelector }))
-          }
-        }}>{t('autoDetect')}</button>
-        <button onClick={() => runTest(newProduct, null)}>{t('test')}</button>
-        {newTest && (
-          <span>{t('result')}: {newTest.name} {newTest.price ?? ''}</span>
-        )}
-        <input type="number" placeholder={t('interval')} value={newProduct.interval} onChange={(e) => setNewProduct({ ...newProduct, interval: Number(e.target.value) })} />
-        <input type="number" placeholder={t('dropPercent')} value={newProduct.dropPercent} onChange={(e) => setNewProduct({ ...newProduct, dropPercent: Number(e.target.value) })} />
-        <input type="number" placeholder={t('belowPrice')} value={newProduct.belowPrice} onChange={(e) => setNewProduct({ ...newProduct, belowPrice: Number(e.target.value) })} />
-        <input placeholder={t('category')} value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} />
-        <select value={newProduct.notify} onChange={(e) => setNewProduct({ ...newProduct, notify: e.target.value })}>
+      )
+    },
+    {
+      header: t('name'),
+      accessor: 'name',
+      cell: (v, row, idx) => (
+        <input value={v} onChange={(e) => handleChange(idx, 'name', e.target.value)} />
+      )
+    },
+    { header: t('url'), accessor: 'url', cell: (v, row, idx) => (
+        <input value={v} onChange={(e) => handleChange(idx, 'url', e.target.value)} />
+    )},
+    { header: t('nameSelector'), accessor: 'nameSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'nameSelector', e.target.value)} />
+    )},
+    { header: t('priceSelector'), accessor: 'priceSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'priceSelector', e.target.value)} />
+    )},
+    { header: t('reviewSelector'), accessor: 'reviewSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'reviewSelector', e.target.value)} />
+    )},
+    { header: t('ratingSelector'), accessor: 'ratingSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'ratingSelector', e.target.value)} />
+    )},
+    { header: t('rankSelector'), accessor: 'rankSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'rankSelector', e.target.value)} />
+    )},
+    { header: t('trendSelector'), accessor: 'trendSelector', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'trendSelector', e.target.value)} />
+    )},
+    { header: t('interval'), accessor: 'interval', cell: (v, row, idx) => (
+        <input type="number" value={v} onChange={(e) => handleChange(idx, 'interval', Number(e.target.value))} />
+    )},
+    { header: t('dropPercent'), accessor: 'dropPercent', cell: (v, row, idx) => (
+        <input type="number" value={v || 0} onChange={(e) => handleChange(idx, 'dropPercent', Number(e.target.value))} />
+    )},
+    { header: t('belowPrice'), accessor: 'belowPrice', cell: (v, row, idx) => (
+        <input type="number" value={v || 0} onChange={(e) => handleChange(idx, 'belowPrice', Number(e.target.value))} />
+    )},
+    { header: t('category'), accessor: 'category', cell: (v, row, idx) => (
+        <input value={v || ''} onChange={(e) => handleChange(idx, 'category', e.target.value)} />
+    )},
+    { header: t('notify'), accessor: 'notify', cell: (v, row, idx) => (
+        <select value={v || 'slack'} onChange={(e) => handleChange(idx, 'notify', e.target.value)}>
           <option value="slack">Slack</option>
           <option value="line">LINE</option>
           <option value="webhook">Webhook</option>
@@ -502,21 +556,156 @@ export default function Manage() {
           <option value="chat">Google Chat</option>
           <option value="both">Slack+LINE</option>
         </select>
-        {user?.role === 'admin' && (
-          <select value={newProduct.owner} onChange={(e) => setNewProduct({ ...newProduct, owner: e.target.value })}>
-            {users.map(u => (
+    )},
+    { header: t('owner'), accessor: 'owner', cell: (v, row, idx) => (
+        user?.role === 'admin' ? (
+          <select value={v || ''} onChange={(e) => handleChange(idx, 'owner', e.target.value)}>
+            {users.map((u) => (
               <option key={u.email} value={u.email}>{u.email}</option>
             ))}
           </select>
-        )}
-        <button onClick={addProduct} disabled={actionLoading} className="border px-2 py-1">
-          {actionLoading ? '...' : t('addProduct')}
-        </button>
+        ) : (v || '')
+    )},
+    { header: t('paused'), accessor: 'paused', cell: (v) => (
+        v ? <span className="status-badge status-paused">{t('paused')}</span> : ''
+    )},
+    { header: t('actions'), accessor: 'actions', cell: (_, row, idx) => (
+        (user?.role === 'admin' || row.owner === user?.email) && (
+          <div className="row-actions gap-1">
+            <Button disabled={actionLoading} onClick={() => updateProduct(idx)} variant="edit" aria-label="Save row">
+              <SaveIcon size={14} /> {actionLoading ? '...' : t('save')}
+            </Button>
+            <Button onClick={() => cancelEdit(idx)} variant="edit" aria-label="Cancel edit">
+              {t('cancel')}
+            </Button>
+            <Button disabled={actionLoading} onClick={() => deleteProduct(idx)} variant="delete" aria-label="Delete row">
+              <Trash2 size={14} /> {actionLoading ? '...' : t('delete')}
+            </Button>
+            <Button onClick={() => runTest(row, idx)} variant="edit" aria-label="Test selectors">
+              <Beaker size={14} /> {t('test')}
+            </Button>
+            <Button onClick={() => runNow(idx)} variant="edit" aria-label="Run now">
+              <Play size={14} /> {t('run')}
+            </Button>
+            <Button onClick={() => togglePause(idx)} variant="edit" aria-label={row.paused ? 'Resume' : 'Pause'}>
+              {row.paused ? <Play size={14} /> : <PauseIcon size={14} />} {row.paused ? t('resume') : t('pause')}
+            </Button>
+            {testResults[idx] && (
+              <span>
+                {t('result')}: {testResults[idx].name} {testResults[idx].price ?? ''}
+              </span>
+            )}
+          </div>
+        )
+    )}
+  ]
+  return (
+    <Layout>
+      {(loading || actionLoading) && <Spinner overlay />}
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{t('manageTitle')}</title>
+      </Head>
+      <div style={{ textAlign: 'right' }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Language">
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+        </select>{' '}
+        <a href="/help">{t('help')}</a>
       </div>
+      <h1>{t('manageTitle')}</h1>
+      <Button onClick={() => setShowAdd(true)} variant="add" aria-label="Add product">
+        <PlusCircle size={16} /> {t('addProduct')}
+      </Button>
+      <Dialog open={showAdd} onClose={() => setShowAdd(false)} title={t('addProduct')}>
+        <FormField
+          label={t('name')}
+          placeholder={t('name')}
+          value={newProduct.name}
+          onChange={(e) => { setNewProduct({ ...newProduct, name: e.target.value }); setTouched({ ...touched, name: true }) }}
+          required
+          error={touched.name && !newProduct.name ? t('requiredField') : ''}
+        />
+        <FormField
+          label={t('url')}
+          placeholder="https://example.com/item"
+          value={newProduct.url}
+          onChange={(e) => { setNewProduct({ ...newProduct, url: e.target.value }); setTouched({ ...touched, url: true }) }}
+          required
+          error={touched.url && !newProduct.url ? t('requiredField') : ''}
+        />
+        <FormField label={t('nameSelector')} value={newProduct.nameSelector} onChange={(e) => setNewProduct({ ...newProduct, nameSelector: e.target.value })} />
+        <FormField label={t('priceSelector')} value={newProduct.priceSelector} onChange={(e) => setNewProduct({ ...newProduct, priceSelector: e.target.value })} />
+        <FormField label={t('reviewSelector')} value={newProduct.reviewSelector} onChange={(e) => setNewProduct({ ...newProduct, reviewSelector: e.target.value })} />
+        <FormField label={t('ratingSelector')} value={newProduct.ratingSelector} onChange={(e) => setNewProduct({ ...newProduct, ratingSelector: e.target.value })} />
+        <FormField label={t('rankSelector')} value={newProduct.rankSelector} onChange={(e) => setNewProduct({ ...newProduct, rankSelector: e.target.value })} />
+        <FormField label={t('trendSelector')} value={newProduct.trendSelector} onChange={(e) => setNewProduct({ ...newProduct, trendSelector: e.target.value })} />
+        <FormField type="number" label={t('interval')} value={newProduct.interval} onChange={(e) => setNewProduct({ ...newProduct, interval: Number(e.target.value) })} />
+        <FormField type="number" label={t('dropPercent')} value={newProduct.dropPercent} onChange={(e) => setNewProduct({ ...newProduct, dropPercent: Number(e.target.value) })} />
+        <FormField type="number" label={t('belowPrice')} value={newProduct.belowPrice} onChange={(e) => setNewProduct({ ...newProduct, belowPrice: Number(e.target.value) })} />
+        <FormField label={t('category')} value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} />
+        <div className="mb-3">
+          <label className="block text-sm font-medium mb-1">{t('notify')}</label>
+          <select className="border px-2 py-1 rounded w-full" value={newProduct.notify} onChange={(e) => setNewProduct({ ...newProduct, notify: e.target.value })}>
+            <option value="slack">Slack</option>
+            <option value="line">LINE</option>
+            <option value="webhook">Webhook</option>
+            <option value="teams">Teams</option>
+            <option value="sms">SMS</option>
+            <option value="chat">Google Chat</option>
+            <option value="both">Slack+LINE</option>
+          </select>
+        </div>
+        {user?.role === 'admin' && (
+          <div className="mb-3">
+            <label className="block text-sm font-medium mb-1">{t('owner')}</label>
+            <select className="border px-2 py-1 rounded w-full" value={newProduct.owner} onChange={(e) => setNewProduct({ ...newProduct, owner: e.target.value })}>
+              {users.map(u => (
+                <option key={u.email} value={u.email}>{u.email}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="flex gap-2 mb-2">
+          <Button onClick={async () => {
+            if (!newProduct.url) return
+            const res = await fetch('/api/detect', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: newProduct.url })
+            })
+            if (res.ok) {
+              const json = await res.json()
+              setNewProduct(p => ({ ...p, nameSelector: json.nameSelector, priceSelector: json.priceSelector }))
+            }
+          }} variant="edit" aria-label="Auto detect selectors">
+            <Search size={16} /> {t('autoDetect')}
+          </Button>
+          <Button onClick={() => runTest(newProduct, null)} variant="edit" aria-label="Test selectors">
+            <Beaker size={16} /> {t('test')}
+          </Button>
+        </div>
+        {newTest && (
+          <p className="text-sm">{t('result')}: {newTest.name} {newTest.price ?? ''}</p>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button onClick={() => { setNewProduct({
+            name: '', url: '', nameSelector: '', priceSelector: '', reviewSelector: '', ratingSelector: '', rankSelector: '', trendSelector: '', interval: 1, dropPercent: 0, belowPrice: 0, category: '', notify: 'slack', owner: user?.email || '', paused: false }); setTouched({}) }} variant="edit">
+            {t('clear')}
+          </Button>
+          <Button onClick={() => setShowAdd(false)} variant="delete" aria-label="Cancel add">
+            {t('cancel')}
+          </Button>
+          <Button onClick={addProduct} disabled={actionLoading} variant="add" aria-label="Save new product">
+            <PlusCircle size={16} /> {actionLoading ? '...' : t('save')}
+          </Button>
+        </div>
+      </Dialog>
       {user?.role === 'admin' && (
-        <button onClick={rollback}>{t('rollback')}</button>
-      )}
-
+        <Button onClick={rollback} variant="delete" aria-label="Rollback changes">
+          <Trash2 size={16} /> {t('rollback')}
+        </Button>
+)}
       <h2>{t('generateReport')}</h2>
       <div>
         <select value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value)}>
@@ -527,7 +716,9 @@ export default function Manage() {
         {reportPeriod === 'category' && (
           <input placeholder={t('category')} value={reportCategory} onChange={(e) => setReportCategory(e.target.value)} />
         )}
-        <button onClick={generateReport}>{t('generate')}</button>
+        <Button onClick={generateReport} variant="edit">
+          <SaveIcon size={16} /> {t('generate')}
+        </Button>
       </div>
 
       <h2>{t('priceSimulation')}</h2>
@@ -544,7 +735,9 @@ export default function Manage() {
           value={margin}
           onChange={(e) => setMargin(parseFloat(e.target.value))}
         />
-        <button onClick={simulatePrice}>{t('simulate')}</button>
+        <Button onClick={simulatePrice} variant="edit">
+          <Play size={16} /> {t('simulate')}
+        </Button>
         {simResult && (
           <div>
             <p>{t('minCompetitorPrice')}: {simResult.min}</p>
@@ -560,7 +753,9 @@ export default function Manage() {
             <option key={i} value={tpl.name}>{tpl.name}</option>
           ))}
         </select>
-        <button onClick={applyTemplate}>{t('applyTemplate')}</button>
+        <Button onClick={applyTemplate} variant="edit">
+          <SaveIcon size={16} /> {t('applyTemplate')}
+        </Button>
         <div>
           <input placeholder={t('notify')} value={bulkEdit.notify} onChange={(e) => setBulkEdit({ ...bulkEdit, notify: e.target.value })} />
           <input type="number" placeholder={t('interval')} value={bulkEdit.interval} onChange={(e) => setBulkEdit({ ...bulkEdit, interval: e.target.value })} />
@@ -576,7 +771,9 @@ export default function Manage() {
               ))}
             </select>
           )}
-          <button onClick={applyBulkEdit}>{t('applyBulk')}</button>
+          <Button onClick={applyBulkEdit} variant="edit">
+            <SaveIcon size={16} /> {t('applyBulk')}
+          </Button>
         </div>
       </div>
       <h2>{t('productsTitle')}</h2>
@@ -587,180 +784,12 @@ export default function Manage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
-            setPage(0)
           }}
         />
       </div>
-      {loading ? (
-        <Spinner />
-      ) : (
+      {!loading && (
       <>
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr>
-            <th>{t('select')}</th>
-            <th onClick={() => handleSort('name')} className="cursor-pointer">
-              {t('name')}
-            </th>
-            <th>{t('url')}</th>
-            <th>{t('nameSelector')}</th>
-            <th>{t('priceSelector')}</th>
-            <th>{t('reviewSelector')}</th>
-            <th>{t('ratingSelector')}</th>
-            <th>{t('rankSelector')}</th>
-            <th>{t('trendSelector')}</th>
-            <th>{t('interval')}</th>
-            <th>{t('dropPercent')}</th>
-            <th>{t('belowPrice')}</th>
-            <th>{t('category')}</th>
-            <th>{t('notify')}</th>
-            <th>{t('owner')}</th>
-            <th>{t('paused')}</th>
-            <th>{t('actions')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paged.map((p, i) => (
-            <React.Fragment key={i}>
-              <tr>
-                <td>
-                  <input type="checkbox" checked={selected.includes(i)} onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelected([...selected, i])
-                    } else {
-                      setSelected(selected.filter(idx => idx !== i))
-                    }
-                  }} />
-                </td>
-                <td>
-                  <input value={p.name} onChange={(e) => handleChange(i, 'name', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.url} onChange={(e) => handleChange(i, 'url', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.nameSelector || ''} onChange={(e) => handleChange(i, 'nameSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.priceSelector || ''} onChange={(e) => handleChange(i, 'priceSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.reviewSelector || ''} onChange={(e) => handleChange(i, 'reviewSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.ratingSelector || ''} onChange={(e) => handleChange(i, 'ratingSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.rankSelector || ''} onChange={(e) => handleChange(i, 'rankSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input value={p.trendSelector || ''} onChange={(e) => handleChange(i, 'trendSelector', e.target.value)} />
-                </td>
-                <td>
-                  <input type="number" value={p.interval} onChange={(e) => handleChange(i, 'interval', Number(e.target.value))} />
-                </td>
-                <td>
-                  <input type="number" value={p.dropPercent || 0} onChange={(e) => handleChange(i, 'dropPercent', Number(e.target.value))} />
-                </td>
-                <td>
-                  <input type="number" value={p.belowPrice || 0} onChange={(e) => handleChange(i, 'belowPrice', Number(e.target.value))} />
-                </td>
-                <td>
-                  <input value={p.category || ''} onChange={(e) => handleChange(i, 'category', e.target.value)} />
-                </td>
-                <td>
-                  <select value={p.notify || 'slack'} onChange={(e) => handleChange(i, 'notify', e.target.value)}>
-                    <option value="slack">Slack</option>
-                    <option value="line">LINE</option>
-                    <option value="webhook">Webhook</option>
-                    <option value="teams">Teams</option>
-                    <option value="sms">SMS</option>
-                    <option value="chat">Google Chat</option>
-                    <option value="both">Slack+LINE</option>
-                  </select>
-                </td>
-                <td>
-                  {user?.role === 'admin' ? (
-                    <select value={p.owner || ''} onChange={(e) => handleChange(i, 'owner', e.target.value)}>
-                      {users.map(u => (
-                        <option key={u.email} value={u.email}>{u.email}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    p.owner || ''
-                  )}
-                </td>
-                <td>{p.paused ? t('paused') : ''}</td>
-                <td>
-                  {(user?.role === 'admin' || p.owner === user?.email) && (
-                    <>
-                      <button disabled={actionLoading} onClick={() => updateProduct(i)} className="border px-2 py-1">
-                        {actionLoading ? '...' : t('save')}
-                      </button>
-                      <button disabled={actionLoading} onClick={() => deleteProduct(i)} className="border px-2 py-1">
-                        {actionLoading ? '...' : t('delete')}
-                      </button>
-                      <button onClick={() => runTest(p, i)}>{t('test')}</button>
-                      <button onClick={() => runNow(i)}>{t('run')}</button>
-                      <button onClick={() => togglePause(i)}>
-                        {p.paused ? t('resume') : t('pause')}
-                      </button>
-                      {testResults[i] && (
-                        <span>
-                          {t('result')}: {testResults[i].name}{' '}
-                          {testResults[i].price ?? ''}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </td>
-              </tr>
-              {suggestionMap[p.url] && (
-                <tr key={`fix-${i}`}>
-                  <td colSpan="17">
-                    <div>
-                      <span>{t('fixSelectors')}:</span>{' '}
-                      <input
-                        placeholder={t('nameSelector')}
-                        value={p.nameSelector || suggestionMap[p.url].nameSelector || ''}
-                        onChange={(e) => handleChange(i, 'nameSelector', e.target.value)}
-                      />
-                      <input
-                        placeholder={t('priceSelector')}
-                        value={p.priceSelector || suggestionMap[p.url].priceSelector || ''}
-                        onChange={(e) => handleChange(i, 'priceSelector', e.target.value)}
-                      />
-                      <button onClick={() => fixSelectors(i, suggestionMap[p.url].idx)}>
-                        {t('saveAndRun')}
-                      </button>
-                      <button onClick={() => runNow(i)}>{t('retry')}</button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex justify-end gap-2 my-2">
-        <button
-          className="border px-2 py-1"
-          disabled={page === 0}
-          onClick={() => setPage((p) => Math.max(0, p - 1))}
-        >
-          Prev
-        </button>
-        <span>
-          {page + 1}/{totalPages || 1}
-        </span>
-        <button
-          className="border px-2 py-1"
-          disabled={page >= totalPages - 1}
-          onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-        >
-          Next
-        </button>
-      </div>
+      <DataTable columns={columns} data={sorted} pageSize={ITEMS_PER_PAGE} />
       </>
       )}
       <h2>{t('pendingApprovals')}</h2>
@@ -781,7 +810,9 @@ export default function Manage() {
               <td>{a.newPrice}</td>
               <td>
                 {user?.role === 'admin' && (
-                  <button onClick={() => approvePrice(a.id)}>{t('approve')}</button>
+                  <Button onClick={() => approvePrice(a.id)} variant="add">
+                    <PlusCircle size={14} /> {t('approve')}
+                  </Button>
                 )}
               </td>
             </tr>
@@ -835,7 +866,9 @@ export default function Manage() {
                   value={commentInputs[r.id] || ''}
                   onChange={(e) => setCommentInputs({ ...commentInputs, [r.id]: e.target.value })}
                 />
-                <button onClick={() => addComment(r.id)}>{t('addComment')}</button>
+                <Button onClick={() => addComment(r.id)} variant="add">
+                  <PlusCircle size={14} /> {t('addComment')}
+                </Button>
               </td>
               <td>
                 {r.approvals.map((a, i) => (
@@ -844,7 +877,9 @@ export default function Manage() {
               </td>
               <td>
                 {user?.role === 'admin' && (
-                  <button onClick={() => approveReport(r.id)}>{t('approve')}</button>
+                  <Button onClick={() => approveReport(r.id)} variant="add">
+                    <PlusCircle size={14} /> {t('approve')}
+                  </Button>
                 )}
               </td>
             </tr>

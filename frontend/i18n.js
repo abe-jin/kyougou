@@ -83,7 +83,13 @@ export const translations = {
     compare: 'Compare',
     logout: 'Logout',
     settings: 'Settings',
-    searchPlaceholder: 'Search'
+    searchPlaceholder: 'Search',
+    cancel: 'Cancel',
+    clear: 'Clear',
+    requiredField: 'This field is required'
+    ,prev: 'Prev'
+    ,next: 'Next'
+    ,noData: 'No data'
   },
   ja: {
     dashboardTitle: '価格ダッシュボード',
@@ -167,12 +173,17 @@ export const translations = {
     compare: '比較',
     logout: 'ログアウト',
     settings: '設定',
-    searchPlaceholder: '検索'
+    searchPlaceholder: '検索',
+    cancel: 'キャンセル',
+    clear: 'クリア',
+    requiredField: '必須項目です',
+    prev: '前へ',
+    next: '次へ',
+    noData: 'データなし'
   }
 }
 
-export const LangContext = createContext({ lang: 'en', setLang: () => {}, t: (k) => k })
-
+export const LangContext = createContext({ lang: 'en', setLang: () => {}, t: (k, vars) => k })
 export function LangProvider({ children }) {
   const [lang, setLangState] = useState('en')
   useEffect(() => {
@@ -185,7 +196,14 @@ export function LangProvider({ children }) {
       localStorage.setItem('lang', l)
     }
   }
-  const t = (key) => translations[lang][key] || key
+  const t = (key, vars = {}) => {
+    const str = translations[lang]?.[key]
+    if (!str) {
+      console.warn('Missing translation:', key)
+      return `[${key}]`
+    }
+    return str.replace(/\{(\w+)\}/g, (_, v) => vars[v] ?? '')
+  }
   return (
     <LangContext.Provider value={{ lang, setLang, t }}>
       {children}
